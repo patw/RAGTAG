@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# LLM Models
+*.gguf
+
 # Distribution / packaging
 .Python
 build/

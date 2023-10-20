@@ -1,0 +1,63 @@
+{% extends 'bootstrap/base.html' %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    body {
+        background: #e8f1f9;
+    }
+</style>
+{% endblock %}
+
+
+{% block title %}
+RAGTAG - LLM Tester
+{% endblock %}
+
+
+{% block content %}
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-10 col-lg-8 mx-lg-auto mx-md-auto">
+
+            <h1 class="pt-5 pb-2">LLM Test</h1>
+
+            {{ wtf.quick_form(form) }}
+
+            <nav class="nav">
+                <a class="nav-link active" aria-current="page" href="/">Chunk View</a>
+            </nav>
+
+            <table class="table table-striped">
+                <tbody>
+                    <tr>
+                        <td><b>Chunks with scores:</b></td>
+                    </tr>
+                    <tr>
+                        <td>
+                            {% for chunk in chunks %}
+                            <p>{{ chunk.chunk_answer }} - {{ chunk.score }}</p>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><b>LLM Prompt:</b></td>
+                    </tr>
+                    <tr>
+                        <td>{{ prompt }}</td>
+                    </tr>
+                    <tr>
+                        <td><b>LLM Response:</b></td>
+                    </tr>
+                    <tr>
+                        <td>{{ llm_response }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

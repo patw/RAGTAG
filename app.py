@@ -1,19 +1,33 @@
+# Basic flask stuff for building http APIs and rendering html templates
 from flask import Flask, render_template, redirect, url_for, request, session
+
+# Bootstrap integration with flask so we can make pretty pages
 from flask_bootstrap import Bootstrap
+
+# Flask forms integrations which save insane amounts of time
 from flask_wtf import FlaskForm
 from wtforms import StringField, SubmitField, TextAreaField, SelectField, PasswordField, IntegerField, FloatField
 from wtforms.validators import DataRequired
+
+# Basic python stuff
 import os
 import json
-import pymongo
-from bson import ObjectId
-from datetime import datetime, timedelta
-from dotenv import load_dotenv
 import functools
 
-# Instructor-large embedding model
+# Basic mongo python stuff
+import pymongo
+from bson import ObjectId
+
+# Nice way to load environment variables for deployments
+from dotenv import load_dotenv
+
+# Instructor-large embedding model for creating vectors
 from InstructorEmbedding import INSTRUCTOR
 instructor_model = INSTRUCTOR('hkunlp/instructor-large')
+
+# Use the wonderful llama.cpp library to execute our LLM (mistral-7b with orca fine tune)
+from llama_cpp import Llama
+llama_model = Llama(model_path="dolphin-2.1-mistral-7b.Q5_K_S.gguf")
 
 # Get environment variables
 load_dotenv()
@@ -24,11 +38,11 @@ app = Flask(__name__)
 # Need this for storing anything in session object
 app.config['SECRET_KEY'] = os.environ["SECRET_KEY"]
 
-# Load users from .env file
+# Load users from .env file - this is sketchy security
 users_string = os.environ["USERS"]
 users = json.loads(users_string)
 
-# Connect to mongo
+# Connect to mongo using our loaded environment variables from the .env file
 conn = os.environ["MONGO_CON"]
 database = os.environ["MONGO_DB"]
 collection = os.environ["MONGO_COL"]
@@ -64,6 +78,14 @@ class VectorSearchForm(FlaskForm):
     search_score_cut = FloatField("Score Cut Off", validators=[DataRequired()])
     submit = SubmitField('Submit')
 
+# Vector search but now for the chatbot LLM
+class LLMForm(FlaskForm):
+    question = StringField('Question', validators=[DataRequired()])
+    search_k = IntegerField("K Value", validators=[DataRequired()])
+    search_score_cut = FloatField("Score Cut Off", validators=[DataRequired()])
+    llm_prompt = StringField('Prompt', validators=[DataRequired()])
+    submit = SubmitField('Submit')
+
 # Return embedding with instruction and text
 def get_embedding(ins, text):
     return instructor_model.encode([[ins,text]]).tolist()[0]
@@ -94,6 +116,7 @@ def search_chunks(search_string):
 
     return col.aggregate(search_query)
 
+# Altlas vector search query for testing chunks semantically using embeddings
 def test_chunks(search_string, k, cut):
     v = get_embedding("Represent the question for retrieving supporting documents:", search_string)
     search_query = [
@@ -127,7 +150,7 @@ def test_chunks(search_string, k, cut):
 
 
 # Define a decorator to check if the user is authenticated
-# No idea how this works...
+# No idea how this works...  Magic.
 def login_required(view):
     @functools.wraps(view)
     def wrapped_view(**kwargs):
@@ -136,12 +159,12 @@ def login_required(view):
         return view(**kwargs)
     return wrapped_view
 
-# The default chunk view, ordered by priority and highlighted in red if overdue
+# The default chunk view with pagination and lexical search
 @app.route('/', methods=['GET', 'POST'])
 @login_required
 def index():
 
-    # We're doing a search here
+    # We're doing a lexical search here
     form = SearchForm()
     if request.method == "POST":
         form_result = request.form.to_dict(flat=True)
@@ -150,8 +173,6 @@ def index():
 
     # Get the chunks!
     chunk_query = col.find().skip(0).limit(50)
-
-    # Get all the active chunks
     chunks = []
     for chunk_item in chunk_query:
         chunks.append(chunk_item)
@@ -159,6 +180,7 @@ def index():
     # Spit out the template
     return render_template('index.html', chunks=chunks, form=form)
 
+# We use this for doing semantic search testing on the chunks
 @app.route('/test', methods=['GET', 'POST'])
 @login_required
 def test():
@@ -176,12 +198,42 @@ def test():
     # Spit out the template
     return render_template('test.html', chunks=chunks, form=form)
 
-# Create or edit chunks
+# We use this for doing semantic search testing on the chunks
+@app.route('/llm', methods=['GET', 'POST'])
+@login_required
+def llm():
+
+    # no chunks by default
+    chunks = []
+
+    # We're doing a vector search here
+    form = LLMForm(search_k=100, search_score_cut=0.88, llm_prompt="Answer the question with the text below: ")
+    if request.method == "POST":
+        form_result = request.form.to_dict(flat=True)
+        chunks = list(test_chunks(form_result["question"], form_result["search_k"], form_result["search_score_cut"]))
+        
+        # Build the LLM prompt from the results of the chunks
+        prompt = form_result["llm_prompt"] + form_result["question"]
+        for answer in chunks:
+            prompt = prompt + answer["chunk_answer"]
+
+        llm_response = llama_model(prompt, max_tokens=512)["choices"][0]["text"]
+
+        return render_template('llm.html', chunks=chunks, form=form, llm_response=llm_response,prompt=prompt)
+
+    # Spit out the template
+    return render_template('llm.html', chunks=chunks, form=form)
+
+# Create or edit chunks. Basic CRUD functionality.
 @app.route('/chunk', methods=['GET', 'POST'])
 @app.route('/chunk/<id>', methods=['GET', 'POST'])
 @login_required
 def chunk(id=None):
+
+    # This is the input form we want to load for doing chunk add/edit
     form = ChunkForm()
+
+    # POST means we're getting a completed form
     if request.method == "POST":
         # Get the form result back and clean up the data set
         form_result = request.form.to_dict(flat=True)
@@ -198,6 +250,8 @@ def chunk(id=None):
             # Back to the chunk view
         return redirect("/")
     else:
+        # This is if we got passed a mongo document ID and we need to edit it.
+        # Load the doc up and render the edit form.
         if id:
             chunk = col.find_one({'_id': ObjectId(id)})
             form.chunk_question.data = chunk["chunk_question"]
