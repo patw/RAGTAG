@@ -1,0 +1,57 @@
+{% extends 'bootstrap/base.html' %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    body {
+        background: #e8f1f9;
+    }
+</style>
+{% endblock %}
+
+
+{% block title %}
+RAGTAG - Search
+{% endblock %}
+
+
+{% block content %}
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-10 col-lg-8 mx-lg-auto mx-md-auto">
+
+            <h1 class="pt-5 pb-2">Chunk Search</h1>
+
+            <nav class="nav">
+                <a class="nav-link active" aria-current="page" href="/">Chunk View</a>
+            </nav>
+
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Question</th>
+                        <th>Answer</th>
+                        <th>Enabled</th>
+                        <th>Score</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for chunk in chunks %}
+                    <tr>
+                        <td><a href="chunk/{{ chunk._id}}">{{ chunk.chunk_question }}</a></td>
+                        <td>{{ chunk.chunk_answer }}</td>
+                        <td>{{ chunk.chunk_enabled }}</td>
+                        <td><a href="chunk_disable/{{ chunk._id}}">Disable</a></td>
+                        <td>{{ chunk.score }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
