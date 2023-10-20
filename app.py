@@ -122,8 +122,6 @@ def test_chunks(search_string, k, cut):
             "$match": { "score": { "$gte": float(cut) }}
         }
         ]
-    
-    print(search_query)
 
     return col.aggregate(search_query)
 
@@ -190,7 +188,6 @@ def chunk(id=None):
         form_result.pop('csrf_token')
         form_result.pop('submit')
         embed_text = form_result["chunk_question"] + " " + form_result["chunk_answer"]
-        print(embed_text)
         form_result["chunk_embedding"] = get_embedding("Represent the document for retrieval:", embed_text)
 
         # Store the result in mongo collection
