@@ -84,6 +84,7 @@ class LLMForm(FlaskForm):
     search_k = IntegerField("K Value", validators=[DataRequired()])
     search_score_cut = FloatField("Score Cut Off", validators=[DataRequired()])
     llm_prompt = StringField('Prompt', validators=[DataRequired()])
+    llm_tokens = IntegerField("Number of tokens from LLM", validators=[DataRequired()])
     submit = SubmitField('Submit')
 
 # Return embedding with instruction and text
@@ -207,7 +208,7 @@ def llm():
     chunks = []
 
     # We're doing a vector search here
-    form = LLMForm(search_k=100, search_score_cut=0.88, llm_prompt="Answer the question with the text below: ")
+    form = LLMForm(search_k=100, search_score_cut=0.88, llm_prompt="Answer the question with the text below: ", llm_tokens=32)
     if request.method == "POST":
         form_result = request.form.to_dict(flat=True)
         chunks = list(test_chunks(form_result["question"], form_result["search_k"], form_result["search_score_cut"]))
@@ -217,7 +218,8 @@ def llm():
         for answer in chunks:
             prompt = prompt + answer["chunk_answer"]
 
-        llm_response = llama_model(prompt, max_tokens=512)["choices"][0]["text"]
+        tokens = int(form_result["llm_tokens"])
+        llm_response = llama_model(prompt, max_tokens=tokens)["choices"][0]["text"]
 
         return render_template('llm.html', chunks=chunks, form=form, llm_response=llm_response,prompt=prompt)
 
