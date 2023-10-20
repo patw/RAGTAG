@@ -28,7 +28,7 @@ instructor_model = INSTRUCTOR('hkunlp/instructor-large')
 # Use the wonderful llama.cpp library to execute our LLM (mistral-7b with dolphin fine tune)
 from llama_cpp import Llama
 llama_model = Llama(model_path="dolphin-2.1-mistral-7b.Q5_K_S.gguf")
-system_message = "You are a helpful assistant who will always answer the question with only the data provided."
+system_message = "You are a helpful assistant who will always answer the question with only the data provided and in 3 sentences."
 prompt_format = "<|im_start|>system\n" + system_message + "<|im_end|>\n<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant:"
 
 # Get environment variables
@@ -210,7 +210,7 @@ def llm():
     chunks = []
 
     # We're doing a vector search here
-    form = LLMForm(search_k=100, search_score_cut=0.88, llm_prompt="Answer the following question \"%q%\" using only this data while ignoring any data irrelevant to this quesiton: %d%", llm_tokens=32)
+    form = LLMForm(search_k=100, search_score_cut=0.88, llm_prompt="Answer the following question \"%q%\" using only this data while ignoring any data irrelevant to this quesiton: %d%", llm_tokens=128)
     if request.method == "POST":
         form_result = request.form.to_dict(flat=True)
         chunks = list(test_chunks(form_result["question"], form_result["search_k"], form_result["search_score_cut"]))
