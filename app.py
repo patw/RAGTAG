@@ -25,9 +25,11 @@ from dotenv import load_dotenv
 from InstructorEmbedding import INSTRUCTOR
 instructor_model = INSTRUCTOR('hkunlp/instructor-large')
 
-# Use the wonderful llama.cpp library to execute our LLM (mistral-7b with orca fine tune)
+# Use the wonderful llama.cpp library to execute our LLM (mistral-7b with dolphin fine tune)
 from llama_cpp import Llama
 llama_model = Llama(model_path="dolphin-2.1-mistral-7b.Q5_K_S.gguf")
+system_message = "You are a helpful assistant who will always answer the question with only the data provided."
+prompt_format = "<|im_start|>system\n" + system_message + "<|im_end|>\n<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant:"
 
 # Get environment variables
 load_dotenv()
@@ -83,7 +85,7 @@ class LLMForm(FlaskForm):
     question = StringField('Question', validators=[DataRequired()])
     search_k = IntegerField("K Value", validators=[DataRequired()])
     search_score_cut = FloatField("Score Cut Off", validators=[DataRequired()])
-    llm_prompt = StringField('Prompt', validators=[DataRequired()])
+    llm_prompt = TextAreaField('Prompt', validators=[DataRequired()])
     llm_tokens = IntegerField("Number of tokens from LLM", validators=[DataRequired()])
     submit = SubmitField('Submit')
 
@@ -208,20 +210,28 @@ def llm():
     chunks = []
 
     # We're doing a vector search here
-    form = LLMForm(search_k=100, search_score_cut=0.88, llm_prompt="Answer the question with the text below: ", llm_tokens=32)
+    form = LLMForm(search_k=100, search_score_cut=0.88, llm_prompt="Answer the following question \"%q%\" using only this data while ignoring any data irrelevant to this quesiton: %d%", llm_tokens=32)
     if request.method == "POST":
         form_result = request.form.to_dict(flat=True)
         chunks = list(test_chunks(form_result["question"], form_result["search_k"], form_result["search_score_cut"]))
-        
-        # Build the LLM prompt from the results of the chunks
-        prompt = form_result["llm_prompt"] + form_result["question"]
+
+         # Build the LLM answer chunks
+        answers = ""
         for answer in chunks:
-            prompt = prompt + answer["chunk_answer"]
+            answers = answers + answer["chunk_answer"] + " "
 
+        # Replace the template tokens with the question and the answers
+        prompt = form_result["llm_prompt"].replace("%q%", form_result["question"])
+        prompt = prompt.replace("%d%", answers)
+
+        # One more replacement step to help our chat model out with a system prompt and proper control tokens
+        formatted_prompt = prompt_format.replace("{prompt}", prompt)
+
+        # Generate LLM response
         tokens = int(form_result["llm_tokens"])
-        llm_response = llama_model(prompt, max_tokens=tokens)["choices"][0]["text"]
+        llm_response = llama_model(formatted_prompt, max_tokens=tokens, temperature=0.1)["choices"][0]["text"]
 
-        return render_template('llm.html', chunks=chunks, form=form, llm_response=llm_response,prompt=prompt)
+        return render_template('llm.html', chunks=chunks, form=form, llm_response=llm_response,prompt=formatted_prompt)
 
     # Spit out the template
     return render_template('llm.html', chunks=chunks, form=form)
