@@ -18,7 +18,7 @@ RAGTAG allows you to:
 
 ## Downloading the Mistral 7b model (with dolphin fine tune)
 
-```wget https://huggingface.co/TheBloke/dolphin-2.1-mistral-7B-GGUF/blob/main/dolphin-2.1-mistral-7b.Q5_K_S.gguf```
+```wget https://huggingface.co/TheBloke/dolphin-2.1-mistral-7B-GGUF/resolve/main/dolphin-2.1-mistral-7b.Q5_K_S.gguf```
 
 ## Running App
 
