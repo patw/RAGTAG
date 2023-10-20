@@ -16,6 +16,10 @@ RAGTAG allows you to:
 
 ```pip install -r requirements.txt```
 
+## Downloading the Mistral 7b model (with dolphin fine tune)
+
+```wget https://huggingface.co/TheBloke/dolphin-2.1-mistral-7B-GGUF/blob/main/dolphin-2.1-mistral-7b.Q5_K_S.gguf```
+
 ## Running App
 
 Copy sample.env to .env and modify with connection string to your Atlas instance
