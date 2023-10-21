@@ -13,6 +13,7 @@ pymongo
 python-dotenv
 
 # Embedding model
+sentence-transformers
 InstructorEmbedding
 
 # LLM model
