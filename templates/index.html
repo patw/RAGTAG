@@ -1,4 +1,4 @@
-{% extends 'bootstrap/base.html' %}
+{% extends 'ragtag_base.html' %}
 {% import "bootstrap/wtf.html" as wtf %}
 
 {% block styles %}
@@ -20,12 +20,6 @@ RAGTAG - Chunk List
         <div class="col-md-10 col-lg-8 mx-lg-auto mx-md-auto">
 
             <h1 class="pt-5 pb-2">Chunk List</h1>
-
-            <p class="lead">
-                <a href="/chunk">New Chunk</a>
-                <a href="/test">Chunk Tester</a>
-                <a href="/llm">LLM Tester</a>
-            </p>
 
             {{ wtf.quick_form(form) }}
 

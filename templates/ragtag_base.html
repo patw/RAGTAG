@@ -1,0 +1,29 @@
+{% extends 'bootstrap/base.html' %}
+
+{% block navbar %}
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <a class="navbar-brand" href="#">RAGTAG</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+            <li class="nav-item">
+                <a class="nav-link" href="/">Chunk List</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/chunk">New Chunk</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/test">Test Chunks</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/llm">Test LLM</a>
+            </li>
+        </ul>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+{% endblock %}

@@ -1,4 +1,4 @@
-{% extends 'bootstrap/base.html' %}
+{% extends 'ragtag_base.html' %}
 {% import "bootstrap/wtf.html" as wtf %}
 
 {% block styles %}
@@ -23,11 +23,6 @@ RAGTAG - Edit Chunk
         <div class="col-md-10 col-lg-8 mx-lg-auto mx-md-auto">
 
             <h1 class="pt-5 pb-2">Create New Chunk</h1>
-
-            <nav class="nav">
-                <a class="nav-link active" aria-current="page" href="/">Chunk View</a>
-            </nav>
-
             <p class="lead">Question and answer is required</p>
 
             {{ wtf.quick_form(form) }}

@@ -1,4 +1,4 @@
-{% extends 'bootstrap/base.html' %}
+{% extends 'ragtag_base.html' %}
 {% import "bootstrap/wtf.html" as wtf %}
 
 {% block styles %}
@@ -25,10 +25,6 @@ RAGTAG - Chunk Tester
             <h1 class="pt-5 pb-2">Chunk Test</h1>
 
             {{ wtf.quick_form(form) }}
-
-            <nav class="nav">
-                <a class="nav-link active" aria-current="page" href="/">Chunk View</a>
-            </nav>
 
             <table class="table table-striped">
                 <thead>
