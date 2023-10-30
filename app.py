@@ -233,24 +233,6 @@ def index():
     # Spit out the template
     return render_template('index.html', chunks=chunks, form=form)
 
-@app.route('/api/list', methods=['GET'])
-@login_required
-def api_list():
-    # Get the chunks!
-    chunk_query = col.find().skip(0).limit(50)
-    chunks = []
-    for chunk_item in chunk_query:
-        chunks.append(chunk_item)
-    return json.loads(json_util.dumps(chunks))
-
-@app.route('/api/search', methods=['GET'])
-@login_required
-def api_search():
-    searchterm = request.args.get("search_string")
-    print(searchterm)
-    chunks = search_chunks(searchterm)
-    return json.loads(json_util.dumps(chunks))
-
 # We use this for doing semantic search testing on the chunks
 @app.route('/test', methods=['GET', 'POST'])
 @login_required
@@ -385,3 +367,54 @@ def api_vector():
     
     # Get the vector result for the string
     return get_embedding("Represent the question for retrieving supporting documents:", q)
+
+# API Endpoint to dump all stored chunks
+@app.route('/api/list')
+def api_list():
+    key = request.args.get("key")
+    # Make sure we have a valid key and question
+    if not key:
+        return {'error': 'no API key provided - /api/list/key=<api key>'}
+    if key != api_key:
+        return {'error': 'API key does not match'}
+
+    # Get the chunks!
+    chunk_query = col.find().skip(0).limit(50)
+    chunks = []
+    for chunk_item in chunk_query:
+        chunks.append(chunk_item)
+    return json.loads(json_util.dumps(chunks))
+
+# API Endpoint to perform lexical search
+@app.route('/api/search')
+def api_search():
+    key = request.args.get("key")
+    q = request.args.get("q")
+    
+    # Make sure we have a valid key and question
+    if not key:
+        return {'error': 'no API key provided - /api/search/key=<api key>'}
+    if not q:
+        return {'error': 'No q parameter found. You must ask a question - /api/search/q=<string>'}
+    if key != api_key:
+        return {'error': 'API key does not match'}
+    
+    chunks = search_chunks(q)
+    return json.loads(json_util.dumps(chunks))
+
+# API Endpoint to perform vector search
+@app.route('/api/vector_search')
+def api_vector_search():
+    key = request.args.get("key")
+    q = request.args.get("q")
+    
+    # Make sure we have a valid key and question
+    if not key:
+        return {'error': 'no API key provided - /api/search/key=<api key>'}
+    if not q:
+        return {'error': 'No q parameter found. You must ask a question - /api/search/q=<string>'}
+    if key != api_key:
+        return {'error': 'API key does not match'}
+    
+    chunks = vector_search_chunks(q, 100, 0.89)
+    return json.loads(json_util.dumps(chunks))
