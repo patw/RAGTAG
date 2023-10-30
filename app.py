@@ -17,6 +17,7 @@ import functools
 # Basic mongo python stuff
 import pymongo
 from bson import ObjectId
+from bson import json_util
 
 # Nice way to load environment variables for deployments
 from dotenv import load_dotenv
@@ -39,19 +40,29 @@ load_dotenv()
 app = Flask(__name__)
 
 # Need this for storing anything in session object
-app.config['SECRET_KEY'] = os.environ["SECRET_KEY"]
-
-# Load users from .env file - this is sketchy security
-users_string = os.environ["USERS"]
-users = json.loads(users_string)
+if "SECRET_KEY"  in os.environ:
+    app.config['SECRET_KEY'] = os.environ["SECRET_KEY"].strip()
+else:
+    app.config['SECRET_KEY'] = "ohboyyoureallyshouldachangedthis"
 
 # Load API key from .evn file - super secure
 api_key = os.environ["API_KEY"]
 
 # Connect to mongo using our loaded environment variables from the .env file
-conn = os.environ["MONGO_CON"]
-database = os.environ["MONGO_DB"]
-collection = os.environ["MONGO_COL"]
+if "SPECUIMDBCONNSTR"  in os.environ:
+    conn = os.environ["SPECUIMDBCONNSTR"].strip()
+else:
+    conn = os.environ["MONGO_CON"].strip()
+
+if "MONGO_DB" in os.environ:
+    database = os.environ["MONGO_DB"].strip()
+else:
+    database = "specialists"
+
+if "MONGO_COL" in os.environ:
+    collection = os.environ["MONGO_COL"].strip()
+else:
+    collection = "ragtagchunks"
 client = pymongo.MongoClient(conn)
 db = client[database]
 col = db[collection]
@@ -192,9 +203,13 @@ def vector_search_chunks(search_string, k, cut):
 def login_required(view):
     @functools.wraps(view)
     def wrapped_view(**kwargs):
-        if session.get("user") is None:
-            return redirect(url_for('login'))
-        return view(**kwargs)
+        # Load users from .env file - this is sketchy security
+        if "USERS" in os.environ:
+            users_string = os.environ["USERS"].strip()
+            users = json.loads(users_string)
+            if session.get("user") is None:
+                return redirect(url_for('login'))
+        return view(**kwargs)        
     return wrapped_view
 
 # The default chunk view with pagination and lexical search
@@ -217,6 +232,24 @@ def index():
 
     # Spit out the template
     return render_template('index.html', chunks=chunks, form=form)
+
+@app.route('/api/list', methods=['GET'])
+@login_required
+def api_list():
+    # Get the chunks!
+    chunk_query = col.find().skip(0).limit(50)
+    chunks = []
+    for chunk_item in chunk_query:
+        chunks.append(chunk_item)
+    return json.loads(json_util.dumps(chunks))
+
+@app.route('/api/search', methods=['GET'])
+@login_required
+def api_search():
+    searchterm = request.args.get("search_string")
+    print(searchterm)
+    chunks = search_chunks(searchterm)
+    return json.loads(json_util.dumps(chunks))
 
 # We use this for doing semantic search testing on the chunks
 @app.route('/test', methods=['GET', 'POST'])

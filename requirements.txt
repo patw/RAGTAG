@@ -8,6 +8,7 @@ Flask-Bootstrap4
 
 # Mongo driver
 pymongo
+dnspython
 
 # Environment file handling
 python-dotenv
