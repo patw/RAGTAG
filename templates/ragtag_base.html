@@ -1,5 +1,18 @@
 {% extends 'bootstrap/base.html' %}
 
+{% block title %}
+RAGTAG
+{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    body {
+        background: #e8f1f9;
+    }
+</style>
+{% endblock %}
+
 {% block navbar %}
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <a class="navbar-brand" href="#">RAGTAG</a>
@@ -23,7 +36,4 @@
         </ul>
     </div>
 </nav>
-{% endblock %}
-
-{% block content %}
 {% endblock %}
