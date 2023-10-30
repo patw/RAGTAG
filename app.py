@@ -30,6 +30,7 @@ from llama_cpp import Llama
 llama_model = Llama(model_path="dolphin-2.1-mistral-7b.Q5_K_S.gguf")
 system_message = "You are a helpful assistant who will always answer the question with only the data provided and in 3 sentences."
 prompt_format = "<|im_start|>system\n" + system_message + "<|im_end|>\n<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant:"
+ban_token = "<|im_end|>"  # This is to prevent the model from leaking additional questions
 
 # Get environment variables
 load_dotenv()
@@ -43,6 +44,9 @@ app.config['SECRET_KEY'] = os.environ["SECRET_KEY"]
 # Load users from .env file - this is sketchy security
 users_string = os.environ["USERS"]
 users = json.loads(users_string)
+
+# Load API key from .evn file - super secure
+api_key = os.environ["API_KEY"]
 
 # Connect to mongo using our loaded environment variables from the .env file
 conn = os.environ["MONGO_CON"]
@@ -93,6 +97,37 @@ class LLMForm(FlaskForm):
 def get_embedding(ins, text):
     return instructor_model.encode([[ins,text]]).tolist()[0]
 
+# Return the retrieval augmented generative result
+def get_rag(question, search_k, search_score_cut, llm_prompt, llm_tokens):
+    # Get all the chunks
+    chunks = list(vector_search_chunks(question, search_k, search_score_cut))
+
+    # Build the LLM answer chunks
+    answers = ""
+    for answer in chunks:
+        answers = answers + answer["chunk_answer"] + " "
+
+    # Replace the template tokens with the question and the answers
+    prompt = llm_prompt.replace("%q%", question)
+    prompt = prompt.replace("%d%", answers)
+
+    # One more replacement step to help our chat model out with a system prompt and proper control tokens
+    llm_result = {}
+    llm_result["input"] = prompt_format.replace("{prompt}", prompt)
+
+    # Generate LLM response and return the text
+    llm_result["output"] = llama_model(llm_result["input"], max_tokens=llm_tokens, temperature=0.1)["choices"][0]["text"]
+
+    # Find the baned tokens
+    index = llm_result["output"].find(ban_token)
+
+    # Check if the ban token is found in the string
+    if index != -1:
+        # Trim the string, including the marker and everything after it
+        llm_result["output"] = llm_result["output"][:index]
+
+    return llm_result
+
 # Atlas search query for chunks
 def search_chunks(search_string):
     search_query = [
@@ -120,7 +155,7 @@ def search_chunks(search_string):
     return col.aggregate(search_query)
 
 # Altlas vector search query for testing chunks semantically using embeddings
-def test_chunks(search_string, k, cut):
+def vector_search_chunks(search_string, k, cut):
     v = get_embedding("Represent the question for retrieving supporting documents:", search_string)
     search_query = [
         {
@@ -192,10 +227,10 @@ def test():
     chunks = []
 
     # We're doing a vector search here
-    form = VectorSearchForm(search_k=100, search_score_cut=0.88)
+    form = VectorSearchForm(search_k=100, search_score_cut=0.89)
     if request.method == "POST":
         form_result = request.form.to_dict(flat=True)
-        chunks = test_chunks(form_result["search_string"], form_result["search_k"], form_result["search_score_cut"])
+        chunks = vector_search_chunks(form_result["search_string"], form_result["search_k"], form_result["search_score_cut"])
         return render_template('test.html', chunks=chunks, form=form)
 
     # Spit out the template
@@ -205,33 +240,15 @@ def test():
 @app.route('/llm', methods=['GET', 'POST'])
 @login_required
 def llm():
-
     # no chunks by default
     chunks = []
 
     # We're doing a vector search here
-    form = LLMForm(search_k=100, search_score_cut=0.88, llm_prompt="Answer the following question \"%q%\" using only this data while ignoring any data irrelevant to this quesiton: %d%", llm_tokens=128)
+    form = LLMForm(search_k=100, search_score_cut=0.89, llm_prompt="Answer the following question \"%q%\" using only this data while ignoring any data irrelevant to this question: %d%", llm_tokens=128)
     if request.method == "POST":
         form_result = request.form.to_dict(flat=True)
-        chunks = list(test_chunks(form_result["question"], form_result["search_k"], form_result["search_score_cut"]))
-
-         # Build the LLM answer chunks
-        answers = ""
-        for answer in chunks:
-            answers = answers + answer["chunk_answer"] + " "
-
-        # Replace the template tokens with the question and the answers
-        prompt = form_result["llm_prompt"].replace("%q%", form_result["question"])
-        prompt = prompt.replace("%d%", answers)
-
-        # One more replacement step to help our chat model out with a system prompt and proper control tokens
-        formatted_prompt = prompt_format.replace("{prompt}", prompt)
-
-        # Generate LLM response
-        tokens = int(form_result["llm_tokens"])
-        llm_response = llama_model(formatted_prompt, max_tokens=tokens, temperature=0.1)["choices"][0]["text"]
-
-        return render_template('llm.html', chunks=chunks, form=form, llm_response=llm_response,prompt=formatted_prompt)
+        llm_response = get_rag(form_result["question"], form_result["search_k"], form_result["search_score_cut"], form_result["llm_prompt"], int(form_result["llm_tokens"]))
+        return render_template('llm.html', chunks=chunks, form=form, llm_response=llm_response["output"],prompt=llm_response["input"])
 
     # Spit out the template
     return render_template('llm.html', chunks=chunks, form=form)
@@ -294,7 +311,44 @@ def login():
                 return redirect(url_for('index'))
     return render_template('login.html', form=form)
 
+# We finally have a link for this now!
 @app.route('/logout')
 def logout():
     session["user"] = None
     return redirect(url_for('login'))
+
+# API endpoint for sending a question and getting the LLM output (RAG)
+# This is what you want to call from your website, slack or discord bot.
+@app.route('/api/rag')
+def api_rag():
+    key = request.args.get("key")
+    q = request.args.get("q")
+    
+    # Make sure we have a valid key and question
+    if not key:
+        return {'error': 'no API key provided - /api/rag/key=<api key>'}
+    if not q:
+        return {'error': 'No q parameter found. You must ask a question - /api/rag/q=<string>'}
+    if key != api_key:
+        return {'error': 'API key does not match'}
+    
+    # Get the LLM result for the query
+    return get_rag(q, 100, 0.89, "Answer the following question \"%q%\" using only this data while ignoring any data irrelevant to this question: %d%", 128)
+
+# API endpoint for sending a question and getting the LLM output (RAG)
+# This is what you want to call from your website, slack or discord bot.
+@app.route('/api/vector')
+def api_vector():
+    key = request.args.get("key")
+    q = request.args.get("q")
+    
+    # Make sure we have a valid key and question
+    if not key:
+        return {'error': 'no API key provided - /api/vector/key=<api key>'}
+    if not q:
+        return {'error': 'No q parameter found. You must provide a string to vectorize - /api/vector/q=<string>'}
+    if key != api_key:
+        return {'error': 'API key does not match'}
+    
+    # Get the vector result for the string
+    return get_embedding("Represent the question for retrieving supporting documents:", q)
