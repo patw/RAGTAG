@@ -39,30 +39,20 @@ load_dotenv()
 # Create the Flask app object
 app = Flask(__name__)
 
-# Need this for storing anything in session object
-if "SECRET_KEY"  in os.environ:
-    app.config['SECRET_KEY'] = os.environ["SECRET_KEY"].strip()
-else:
-    app.config['SECRET_KEY'] = "ohboyyoureallyshouldachangedthis"
-
 # Load API key from .evn file - super secure
 api_key = os.environ["API_KEY"]
 
-# Connect to mongo using our loaded environment variables from the .env file
-if "SPECUIMDBCONNSTR"  in os.environ:
-    conn = os.environ["SPECUIMDBCONNSTR"].strip()
-else:
-    conn = os.environ["MONGO_CON"].strip()
+# Need this for storing anything in session object
+app.config['SECRET_KEY'] = os.environ["SECRET_KEY"]
 
-if "MONGO_DB" in os.environ:
-    database = os.environ["MONGO_DB"].strip()
-else:
-    database = "specialists"
+# Load users from .env file
+users_string = os.environ["USERS"]
+users = json.loads(users_string)
 
-if "MONGO_COL" in os.environ:
-    collection = os.environ["MONGO_COL"].strip()
-else:
-    collection = "ragtagchunks"
+# Connect to mongo
+conn = os.environ["MONGO_CON"]
+database = os.environ["MONGO_DB"]
+collection = os.environ["MONGO_COL"]
 client = pymongo.MongoClient(conn)
 db = client[database]
 col = db[collection]
