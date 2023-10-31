@@ -28,7 +28,7 @@ instructor_model = INSTRUCTOR('hkunlp/instructor-large')
 
 # Use the wonderful llama.cpp library to execute our LLM (mistral-7b with dolphin fine tune)
 from llama_cpp import Llama
-llama_model = Llama(model_path="dolphin-2.1-mistral-7b.Q5_K_S.gguf")
+llama_model = Llama(model_path="dolphin-2.1-mistral-7b.Q5_K_S.gguf", n_ctx=2048)
 system_message = "You are a helpful assistant who will always answer the question with only the data provided and in 3 sentences."
 prompt_format = "<|im_start|>system\n" + system_message + "<|im_end|>\n<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant:"
 ban_token = "<|im_end|>"  # This is to prevent the model from leaking additional questions
