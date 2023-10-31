@@ -10,7 +10,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt clean
 RUN apt update
 RUN apt install -y \
-        python3.10  \
+        python3.11  \
         wget \ 
         git \
         openssl \
@@ -20,13 +20,13 @@ RUN apt install -y \
         python3-pip
 
 # links
-RUN ln -s /usr/bin/python3.10 /usr/bin/python3 -f
-RUN ln -s /usr/bin/python3.10 /usr/bin/python -f
+RUN ln -s /usr/bin/python3.11 /usr/bin/python3 -f
+RUN ln -s /usr/bin/python3.11 /usr/bin/python -f
 
 # install pip
 #RUN wget -O get-pip.py https://bootstrap.pypa.io/get-pip.py
 #RUN python3 get-pip.py
-RUN rm /usr/lib/python3.10/EXTERNALLY-MANAGED
+RUN rm /usr/lib/python3.11/EXTERNALLY-MANAGED
 
 RUN mkdir /opt/ragtag
 COPY ./dolphin-2.1-mistral-7b.Q5_K_S.gguf /opt/ragtag/dolphin-2.1-mistral-7b.Q5_K_S.gguf

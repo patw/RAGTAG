@@ -40,22 +40,42 @@ load_dotenv()
 app = Flask(__name__)
 
 # Load API key from .evn file - super secure
-api_key = os.environ["API_KEY"]
+if "API_KEY" in os.environ:
+    api_key = os.environ["API_KEY"]
+else:
+    api_key = None
 
 # Need this for storing anything in session object
-app.config['SECRET_KEY'] = os.environ["SECRET_KEY"]
+if "SECRET_KEY"  in os.environ:
+    app.config['SECRET_KEY'] = os.environ["SECRET_KEY"].strip()
+else:
+    app.config['SECRET_KEY'] = "ohboyyoureallyshouldachangedthis"
 
-# Load users from .env file
-users_string = os.environ["USERS"]
-users = json.loads(users_string)
+# Connect to mongo using our loaded environment variables from the .env file
+if "SPECUIMDBCONNSTR"  in os.environ:
+    conn = os.environ["SPECUIMDBCONNSTR"].strip()
+else:
+    conn = os.environ["MONGO_CON"].strip()
 
-# Connect to mongo
-conn = os.environ["MONGO_CON"]
-database = os.environ["MONGO_DB"]
-collection = os.environ["MONGO_COL"]
+if "MONGO_DB" in os.environ:
+    database = os.environ["MONGO_DB"].strip()
+else:
+    database = "specialists"
+
+if "MONGO_COL" in os.environ:
+    collection = os.environ["MONGO_COL"].strip()
+else:
+    collection = "ragtagchunks"
 client = pymongo.MongoClient(conn)
 db = client[database]
 col = db[collection]
+
+# Load users from .env file
+if "USERS" in os.environ:
+    users_string = os.environ["USERS"]
+    users = json.loads(users_string)
+else:
+    users = None
 
 # Make it pretty because I can't :(
 Bootstrap(app)
@@ -198,10 +218,7 @@ def vector_search_chunks(search_string, k, cut):
 def login_required(view):
     @functools.wraps(view)
     def wrapped_view(**kwargs):
-        # Load users from .env file - this is sketchy security
-        if "USERS" in os.environ:
-            users_string = os.environ["USERS"].strip()
-            users = json.loads(users_string)
+        if users != None:
             if session.get("user") is None:
                 return redirect(url_for('login'))
         return view(**kwargs)        
@@ -335,11 +352,9 @@ def api_rag():
     q = request.args.get("q")
     
     # Make sure we have a valid key and question
-    if not key:
-        return {'error': 'no API key provided - /api/rag/key=<api key>'}
     if not q:
         return {'error': 'No q parameter found. You must ask a question - /api/rag/q=<string>'}
-    if key != api_key:
+    if ((key != api_key) and (api_key != None)):
         return {'error': 'API key does not match'}
     
     # Get the LLM result for the query
@@ -353,11 +368,9 @@ def api_vector():
     q = request.args.get("q")
     
     # Make sure we have a valid key and question
-    if not key:
-        return {'error': 'no API key provided - /api/vector/key=<api key>'}
     if not q:
         return {'error': 'No q parameter found. You must provide a string to vectorize - /api/vector/q=<string>'}
-    if key != api_key:
+    if ((key != api_key) and (api_key != None)):
         return {'error': 'API key does not match'}
     
     # Get the vector result for the string
@@ -368,9 +381,7 @@ def api_vector():
 def api_list():
     key = request.args.get("key")
     # Make sure we have a valid key and question
-    if not key:
-        return {'error': 'no API key provided - /api/list/key=<api key>'}
-    if key != api_key:
+    if ((key != api_key) and (api_key != None)):
         return {'error': 'API key does not match'}
 
     # Get the chunks!
@@ -387,11 +398,9 @@ def api_search():
     q = request.args.get("q")
     
     # Make sure we have a valid key and question
-    if not key:
-        return {'error': 'no API key provided - /api/search/key=<api key>'}
     if not q:
         return {'error': 'No q parameter found. You must ask a question - /api/search/q=<string>'}
-    if key != api_key:
+    if ((key != api_key) and (api_key != None)):
         return {'error': 'API key does not match'}
     
     chunks = search_chunks(q)
@@ -404,11 +413,9 @@ def api_vector_search():
     q = request.args.get("q")
     
     # Make sure we have a valid key and question
-    if not key:
-        return {'error': 'no API key provided - /api/search/key=<api key>'}
     if not q:
         return {'error': 'No q parameter found. You must ask a question - /api/search/q=<string>'}
-    if key != api_key:
+    if ((key != api_key) and (api_key != None)):
         return {'error': 'API key does not match'}
     
     chunks = vector_search_chunks(q, 100, 0.89)
