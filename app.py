@@ -108,6 +108,11 @@ def get_rag(question, search_k, search_score_cut, llm_prompt, llm_tokens):
     for answer in chunks:
         answers = answers + answer["chunk_answer"] + " "
 
+    # Oh no! We have no chunks.  Just return a generic "we can't help you"
+    # Score cut offs really help prevent LLM abuse.  This is your first guardrail.
+    if answers == "":
+        return {"input": "no chunks found", "output": "No data was found to answer this question"}
+
     # Replace the template tokens with the question and the answers
     prompt = llm_prompt.replace("%q%", question)
     prompt = prompt.replace("%d%", answers)
