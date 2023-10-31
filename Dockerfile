@@ -33,6 +33,7 @@ COPY ./dolphin-2.1-mistral-7b.Q5_K_S.gguf /opt/ragtag/dolphin-2.1-mistral-7b.Q5_
 COPY ./app.py /opt/ragtag/app.py
 COPY ./requirements.txt /opt/ragtag/requirements.txt
 COPY ./templates /opt/ragtag/templates
+COPY ./static /opt/ragtag/static
 COPY ./preloadpackages.py /opt/ragtag/preloadpackages.py
 
 # install pip required packages
