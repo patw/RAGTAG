@@ -84,7 +84,7 @@ Bootstrap(app)
 class ChunkForm(FlaskForm):
     chunk_question = StringField('Question', validators=[DataRequired()])
     chunk_answer = TextAreaField('Answer', validators=[DataRequired()])
-    chunk_enabled = SelectField('Enabled', choices=[(True, 'Enabled'), (False, 'Disabled')])
+    chunk_enabled = SelectField('Enabled', choices=[(True, True), (False, False)])
     submit = SubmitField('Submit')
 
 # Amazing, I hate writing this stuff
@@ -154,6 +154,11 @@ def get_rag(question, search_k, search_score_cut, llm_prompt, llm_tokens):
 
     return llm_result
 
+# Count the number of tokens in the string (useful for setting limits)
+def token_count(text):
+    words = text.split()  # Split the text into words using spaces as the default delimiter
+    return len(words)
+
 # Atlas search query for chunks
 def search_chunks(search_string):
     search_query = [
@@ -189,6 +194,7 @@ def vector_search_chunks(search_string, k, cut):
                 "knnBeta": {
                     "path": "chunk_embedding",
                     "vector": v,
+                    "filter": { "equals": { "path": "chunk_enabled", "value": True}},
                     "k": int(k)
                 }
             }
@@ -295,7 +301,14 @@ def chunk(id=None):
         form_result = request.form.to_dict(flat=True)
         form_result.pop('csrf_token')
         form_result.pop('submit')
+        # Change the text True/False to a proper python type - Thanks WTForms :(
+        if form_result["chunk_enabled"] == "True":
+            form_result["chunk_enabled"] = True
+        if form_result["chunk_enabled"] == "False":
+            form_result["chunk_enabled"] = False
         embed_text = form_result["chunk_question"] + " " + form_result["chunk_answer"]
+        # Stuff the token count into the form result
+        form_result["chunk_tokens"] = token_count(form_result["chunk_question"] + " " + form_result["chunk_answer"])
         form_result["chunk_embedding"] = get_embedding("Represent the document for retrieval:", embed_text)
 
         # Store the result in mongo collection
@@ -312,7 +325,7 @@ def chunk(id=None):
             chunk = col.find_one({'_id': ObjectId(id)})
             form.chunk_question.data = chunk["chunk_question"]
             form.chunk_answer.data = chunk["chunk_answer"]
-            form.chunk_enabled.data = chunk["chunk_enabled"]
+            form.chunk_enabled.data = bool(chunk["chunk_enabled"])
     return render_template('chunk.html', form=form)
 
 # This chunk is bad, we need to make it feel bad
@@ -325,6 +338,13 @@ def chunk_disable(id):
 
     chunk_data = col.find_one({'_id': ObjectId(id)})
     col.update_one({'_id': ObjectId(id)}, {"$set": update_doc})
+    return redirect('/')
+
+# This chunk is bad, we need to make it feel bad
+@app.route('/chunk_delete/<id>')
+@login_required
+def chunk_delete(id):
+    chunk_data = col.delete_one({'_id': ObjectId(id)})
     return redirect('/')
 
 # Login/logout routes that rely on the user being stored in session

@@ -15,8 +15,10 @@
                     <tr>
                         <th>Question</th>
                         <th>Answer</th>
+                        <th>Token Count</th>
                         <th>Enabled</th>
                         <th>Disable</th>
+                        <th>Delete</th>
                     </tr>
                 </thead>
 
@@ -25,8 +27,10 @@
                     <tr>
                         <td><a href="chunk/{{ chunk._id}}">{{ chunk.chunk_question }}</a></td>
                         <td>{{ chunk.chunk_answer }}</td>
+                        <td>{{ chunk.chunk_tokens }} / 512</td>
                         <td>{{ chunk.chunk_enabled }}</td>
-                        <td><a href="chunk_disable/{{ chunk._id}}">Disable</a></td>
+                        <td><a href="chunk_disable/{{ chunk._id}}">O</a></td>
+                        <td><a href="chunk_delete/{{ chunk._id}}">X</a></td>
                     </tr>
                     {% endfor %}
                 </tbody>
