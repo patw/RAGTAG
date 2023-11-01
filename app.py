@@ -32,6 +32,18 @@ llama_model = Llama(model_path="dolphin-2.1-mistral-7b.Q5_K_S.gguf", n_ctx=2048)
 prompt_format = "<|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant:"
 ban_token = "<|"  # This is to prevent the model from leaking additional questions
 
+# Some default constants, feel free to change any of these!
+# ----------------------------------------------------------
+DEFAULT_SCORE_CUT = 0.89  # The score cut off for instructor results anywhere from 0.8 to 0.92 seems good
+DEFAULT_TEMP = 0.1 # The LLM temperature value, 0.1 is deterministic results, 0.7 is more creative
+DEFAULT_K = 100  # The over-request value for the ANN query. 100-200 is good.
+DEFAULT_TOKENS = 64  # The default number of tokens for the LLM to produce.  64 is fast, 128 gives longer results.
+# This is the default prompt with replaceable question (%q%) and data (%d%) tokens
+DEFAULT_PROMPT = "Answer the following question \"%q%\" using only this data while ignoring any data irrelevant to this question: %d%"
+# This is the default system message for controlling the LLM behavior
+DEFAULT_SYSTEM = "You are a helpful assistant who will always answer the question with only the data provided and in 2 sentences"
+# ----------------------------------------------------------
+
 # Get environment variables
 load_dotenv()
 
@@ -123,11 +135,14 @@ def get_embedding(ins, text):
 def get_rag(question, search_k, search_score_cut, llm_prompt, llm_system, llm_temp, llm_tokens):
     # Get all the chunks
     chunks = list(vector_search_chunks(question, search_k, search_score_cut))
+    answer_scores = []
 
-    # Build the LLM answer chunks
+    # Build the LLM answer chunks and build up our answer scores for later
     answers = ""
     for answer in chunks:
         answers = answers + answer["chunk_answer"] + " "
+        score_data = {"chunk_answer": answer["chunk_answer"], "score": answer["score"]}
+        answer_scores.append(score_data)
 
     # Oh no! We have no chunks.  Just return a generic "we can't help you"
     # Score cut offs really help prevent LLM abuse.  This is your first guardrail.
@@ -155,7 +170,7 @@ def get_rag(question, search_k, search_score_cut, llm_prompt, llm_system, llm_te
         llm_result["output"] = llm_result["output"][:index]
 
     # Sure, throw the chunks in there too!
-    llm_result["chunks"] = chunks
+    llm_result["chunks"] = answer_scores
 
     return llm_result
 
@@ -265,7 +280,7 @@ def test():
     chunks = []
 
     # We're doing a vector search here
-    form = VectorSearchForm(search_k=100, search_score_cut=0.89)
+    form = VectorSearchForm(search_k=DEFAULT_K, search_score_cut=DEFAULT_SCORE_CUT)
     if request.method == "POST":
         form_result = request.form.to_dict(flat=True)
         chunks = vector_search_chunks(form_result["search_string"], form_result["search_k"], form_result["search_score_cut"])
@@ -279,10 +294,8 @@ def test():
 @login_required
 def llm():
     # We're doing a vector search here
-    form = LLMForm(search_k=100, search_score_cut=0.89, 
-        llm_prompt="Answer the following question \"%q%\" using only this data while ignoring any data irrelevant to this question: %d%",
-        llm_system="You are a helpful assistant who will always answer the question with only the data provided and in 2 sentences",
-        llm_temp = 0.1, llm_tokens=64)
+    chunks = []
+    form = LLMForm(search_k=DEFAULT_K, search_score_cut=DEFAULT_SCORE_CUT, llm_prompt=str(DEFAULT_PROMPT), llm_system=str(DEFAULT_SYSTEM),llm_temp = DEFAULT_TEMP, llm_tokens=DEFAULT_TOKENS)
     if request.method == "POST":
         form_result = request.form.to_dict(flat=True)
         llm_response = get_rag(form_result["question"], form_result["search_k"], form_result["search_score_cut"], form_result["llm_prompt"], form_result["llm_system"], float(form_result["llm_temp"]), int(form_result["llm_tokens"]))
@@ -381,12 +394,12 @@ def api_rag():
         return {'error': 'No q parameter found. You must ask a question - /api/rag/q=<string>'}
     if ((key != api_key) and (api_key != None)):
         return {'error': 'API key does not match'}
-    
-    # Get the LLM result for the query
-    return get_rag(q, 100, 0.89, "Answer the following question \"%q%\" using only this data while ignoring any data irrelevant to this question: %d%", 128)
 
-# API endpoint for sending a question and getting the LLM output (RAG)
-# This is what you want to call from your website, slack or discord bot.
+    # Get the LLM result for the question with default settings then return it
+    llm_response = get_rag(q, DEFAULT_K, DEFAULT_SCORE_CUT, DEFAULT_PROMPT, DEFAULT_SYSTEM, DEFAULT_TEMP, DEFAULT_TOKENS)
+    return llm_response 
+
+# API endpoint for getting a text embedding from instructor.
 @app.route('/api/vector')
 def api_vector():
     key = request.args.get("key")
@@ -443,5 +456,5 @@ def api_vector_search():
     if ((key != api_key) and (api_key != None)):
         return {'error': 'API key does not match'}
     
-    chunks = vector_search_chunks(q, 100, 0.89)
+    chunks = vector_search_chunks(q, DEFAULT_K, DEFAULT_SCORE_CUT)
     return json.loads(json_util.dumps(chunks))
