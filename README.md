@@ -12,6 +12,8 @@ RAGTAG allows you to:
 * Search existing chunks, edit chunk, update embedding and update chatbot in real time
 * Test your chunks for recall by using real questions
 
+![RAGTAG UI Screenshot](images/ragtag_ui.png)
+
 ## Installation
 
 ```pip install -r requirements.txt```
