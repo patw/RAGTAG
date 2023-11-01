@@ -28,6 +28,8 @@ Copy sample.env to .env and modify with connection string to your Atlas instance
 
 ```flask run```
 
+**WARNING: You will need about 20 gigs of ram to run this process! Mistral-7b requires 14 gig with the Q5 quantization, and instructor needs 4 gig on it's own**
+
 ## Atlas Search Index
 
 Create and Atlas Search index, in the Atlas UI under the Search tab for the "chunks" collection
