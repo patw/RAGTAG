@@ -154,6 +154,9 @@ def get_rag(question, search_k, search_score_cut, llm_prompt, llm_system, llm_te
         # Trim the string, including the marker and everything after it
         llm_result["output"] = llm_result["output"][:index]
 
+    # Sure, throw the chunks in there too!
+    llm_result["chunks"] = chunks
+
     return llm_result
 
 # Count the number of tokens in the string (useful for setting limits)
@@ -275,9 +278,6 @@ def test():
 @app.route('/llm', methods=['GET', 'POST'])
 @login_required
 def llm():
-    # no chunks by default
-    chunks = []
-
     # We're doing a vector search here
     form = LLMForm(search_k=100, search_score_cut=0.89, 
         llm_prompt="Answer the following question \"%q%\" using only this data while ignoring any data irrelevant to this question: %d%",
@@ -286,7 +286,7 @@ def llm():
     if request.method == "POST":
         form_result = request.form.to_dict(flat=True)
         llm_response = get_rag(form_result["question"], form_result["search_k"], form_result["search_score_cut"], form_result["llm_prompt"], form_result["llm_system"], float(form_result["llm_temp"]), int(form_result["llm_tokens"]))
-        return render_template('llm.html', chunks=chunks, form=form, llm_response=llm_response["output"],prompt=llm_response["input"])
+        return render_template('llm.html', chunks=llm_response["chunks"], form=form, llm_response=llm_response["output"],prompt=llm_response["input"])
 
     # Spit out the template
     return render_template('llm.html', chunks=chunks, form=form)
