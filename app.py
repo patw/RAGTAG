@@ -29,9 +29,8 @@ instructor_model = INSTRUCTOR('hkunlp/instructor-large')
 # Use the wonderful llama.cpp library to execute our LLM (mistral-7b with dolphin fine tune)
 from llama_cpp import Llama
 llama_model = Llama(model_path="dolphin-2.1-mistral-7b.Q5_K_S.gguf", n_ctx=2048)
-system_message = "You are a helpful assistant who will always answer the question with only the data provided and in 3 sentences."
-prompt_format = "<|im_start|>system\n" + system_message + "<|im_end|>\n<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant:"
-ban_token = "<|im_end|>"  # This is to prevent the model from leaking additional questions
+prompt_format = "<|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant:"
+ban_token = "<|"  # This is to prevent the model from leaking additional questions
 
 # Get environment variables
 load_dotenv()
@@ -110,7 +109,9 @@ class LLMForm(FlaskForm):
     question = StringField('Question', validators=[DataRequired()])
     search_k = IntegerField("K Value", validators=[DataRequired()])
     search_score_cut = FloatField("Score Cut Off", validators=[DataRequired()])
+    llm_system = TextAreaField('System Message', validators=[DataRequired()])
     llm_prompt = TextAreaField('Prompt', validators=[DataRequired()])
+    llm_temp = FloatField("Temperature", validators=[DataRequired()])
     llm_tokens = IntegerField("Number of tokens from LLM", validators=[DataRequired()])
     submit = SubmitField('Submit')
 
@@ -119,7 +120,7 @@ def get_embedding(ins, text):
     return instructor_model.encode([[ins,text]]).tolist()[0]
 
 # Return the retrieval augmented generative result
-def get_rag(question, search_k, search_score_cut, llm_prompt, llm_tokens):
+def get_rag(question, search_k, search_score_cut, llm_prompt, llm_system, llm_temp, llm_tokens):
     # Get all the chunks
     chunks = list(vector_search_chunks(question, search_k, search_score_cut))
 
@@ -140,9 +141,10 @@ def get_rag(question, search_k, search_score_cut, llm_prompt, llm_tokens):
     # One more replacement step to help our chat model out with a system prompt and proper control tokens
     llm_result = {}
     llm_result["input"] = prompt_format.replace("{prompt}", prompt)
+    llm_result["input"] = llm_result["input"].replace("{system}", llm_system)
 
     # Generate LLM response and return the text
-    llm_result["output"] = llama_model(llm_result["input"], max_tokens=llm_tokens, temperature=0.1)["choices"][0]["text"]
+    llm_result["output"] = llama_model(llm_result["input"], max_tokens=llm_tokens, temperature=llm_temp)["choices"][0]["text"]
 
     # Find the baned tokens
     index = llm_result["output"].find(ban_token)
@@ -277,10 +279,13 @@ def llm():
     chunks = []
 
     # We're doing a vector search here
-    form = LLMForm(search_k=100, search_score_cut=0.89, llm_prompt="Answer the following question \"%q%\" using only this data while ignoring any data irrelevant to this question: %d%", llm_tokens=128)
+    form = LLMForm(search_k=100, search_score_cut=0.89, 
+        llm_prompt="Answer the following question \"%q%\" using only this data while ignoring any data irrelevant to this question: %d%",
+        llm_system="You are a helpful assistant who will always answer the question with only the data provided and in 2 sentences",
+        llm_temp = 0.1, llm_tokens=64)
     if request.method == "POST":
         form_result = request.form.to_dict(flat=True)
-        llm_response = get_rag(form_result["question"], form_result["search_k"], form_result["search_score_cut"], form_result["llm_prompt"], int(form_result["llm_tokens"]))
+        llm_response = get_rag(form_result["question"], form_result["search_k"], form_result["search_score_cut"], form_result["llm_prompt"], form_result["llm_system"], float(form_result["llm_temp"]), int(form_result["llm_tokens"]))
         return render_template('llm.html', chunks=chunks, form=form, llm_response=llm_response["output"],prompt=llm_response["input"])
 
     # Spit out the template
