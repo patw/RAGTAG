@@ -3,6 +3,30 @@
 
 {% block content %}
 
+<script>
+    function countWords() {
+        // Get the textarea element
+        var textarea = document.getElementById('chunk_answer');
+        var textinput = document.getElementById('chunk_question');
+        
+        // Get the text content from the textarea
+        var text = textarea.value + textinput.value;
+
+        // Remove leading and trailing white spaces
+        text = text.trim();
+
+        // Split the text into words by spaces
+        var words = text.split(/\s+/);
+
+        // Count the number of words
+        var wordCount = words.length;
+
+        // Display the word count in the label
+        var label = document.getElementById('wordCountLabel');
+        label.textContent = 'Token count: ' + wordCount;
+    }
+</script>
+
 <div class="container">
     <div class="row">
         <div class="col-md-10 col-lg-10 mx-lg-auto mx-md-auto">
@@ -11,6 +35,21 @@
             <p class="lead">Question and answer is required</p>
 
             {{ wtf.quick_form(form) }}
+
+            <script>
+                var textarea = document.querySelector('textarea[name="chunk_answer"]');
+                var textinput = document.querySelector('input[name="chunk_question"]');
+                textarea.oninput = function() {
+                    countWords();
+                };
+                textinput.oninput = function() {
+                    countWords();
+                };
+            </script>
+
+            <hr/>
+            <p class="lead">We suggest not exceeding 512 tokens between the question and the answer</p>
+            <label class="lead" id="wordCountLabel">Token count: 0</label>
 
         </div>
     </div>
