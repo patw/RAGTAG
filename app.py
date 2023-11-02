@@ -13,6 +13,7 @@ from wtforms.validators import DataRequired
 import os
 import json
 import functools
+import random
 
 # Basic mongo python stuff
 import pymongo
@@ -398,6 +399,33 @@ def api_rag():
     # Get the LLM result for the question with default settings then return it
     llm_response = get_rag(q, DEFAULT_K, DEFAULT_SCORE_CUT, DEFAULT_PROMPT, DEFAULT_SYSTEM, DEFAULT_TEMP, DEFAULT_TOKENS)
     return llm_response 
+
+# API endpoint for that mimics the response of the previous
+# To respond quickly for api testing
+@app.route('/api/ragfake')
+def api_ragfake():
+    key = request.args.get("key")
+    q = request.args.get("q")
+    
+    # Make sure we have a valid key and question
+    if not q:
+        return {'error': 'No q parameter found. You must ask a question - /api/rag/q=<string>'}
+    if ((key != api_key) and (api_key != None)):
+        return {'error': 'API key does not match'}
+
+    resp = {}
+    resp["input"] = q
+    resp["output"] = "this is a mock response from the api."
+    resp["chunks"] = []
+
+    for i in range(3):
+        c = {}
+        c["chunk_answer"] = "This is chunk answer number " + str(i)
+        c["score"] = random.random()
+        resp["chunks"].append(c)
+    
+    return resp
+
 
 # API endpoint for getting a text embedding from instructor.
 @app.route('/api/vector')
