@@ -14,6 +14,7 @@ import os
 import json
 import functools
 import random
+import threading
 
 # Basic mongo python stuff
 import pymongo
@@ -32,10 +33,11 @@ from llama_cpp import Llama
 llama_model = Llama(model_path="dolphin-2.1-mistral-7b.Q5_K_S.gguf", n_ctx=2048, use_mlock=False)
 prompt_format = "<|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant:"
 ban_token = "<|"  # This is to prevent the model from leaking additional questions
+data_lock = threading.Lock()  # This is a lock to prevent the LLM library from being called concurrently
 
 # Some default constants, feel free to change any of these!
 # ----------------------------------------------------------
-DEFAULT_SCORE_CUT = 0.89  # The score cut off for instructor results anywhere from 0.8 to 0.92 seems good
+DEFAULT_SCORE_CUT = 0.9  # The score cut off for instructor results anywhere from 0.8 to 0.92 seems good
 DEFAULT_TEMP = 0.1 # The LLM temperature value, 0.1 is deterministic results, 0.7 is more creative
 DEFAULT_K = 100  # The over-request value for the ANN query. 100-200 is good.
 DEFAULT_TOKENS = 64  # The default number of tokens for the LLM to produce.  64 is fast, 128 gives longer results.
@@ -159,8 +161,9 @@ def get_rag(question, search_k, search_score_cut, llm_prompt, llm_system, llm_te
     llm_result["input"] = prompt_format.replace("{prompt}", prompt)
     llm_result["input"] = llm_result["input"].replace("{system}", llm_system)
 
-    # Generate LLM response and return the text
-    llm_result["output"] = llama_model(llm_result["input"], max_tokens=llm_tokens, temperature=llm_temp)["choices"][0]["text"]
+    # Generate LLM response and return the text but only allow 1 at a time
+    with data_lock:
+        llm_result["output"] = llama_model(llm_result["input"], max_tokens=llm_tokens, temperature=llm_temp)["choices"][0]["text"]
 
     # Find the baned tokens
     index = llm_result["output"].find(ban_token)
