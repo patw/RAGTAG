@@ -31,6 +31,7 @@ instructor_model = INSTRUCTOR('hkunlp/instructor-large')
 # Use the wonderful llama.cpp library to execute our LLM (mistral-7b with dolphin fine tune)
 from llama_cpp import Llama
 llama_model = Llama(model_path="dolphin-2.1-mistral-7b.Q5_K_S.gguf", n_ctx=2048, use_mlock=False)
+
 prompt_format = "<|im_start|>system\n{system}<|im_end|>\n<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant:"
 ban_token = "<|"  # This is to prevent the model from leaking additional questions
 data_lock = threading.Lock()  # This is a lock to prevent the LLM library from being called concurrently
@@ -137,12 +138,15 @@ def get_embedding(ins, text):
 # Return the retrieval augmented generative result
 def get_rag(question, search_k, search_score_cut, llm_prompt, llm_system, llm_temp, llm_tokens):
     # Get all the chunks
+    print("GETTING CHUNKS")
     chunks = list(vector_search_chunks(question, search_k, search_score_cut))
     answer_scores = []
 
     # Build the LLM answer chunks and build up our answer scores for later
     answers = ""
+    print("ANSWERS")
     for answer in chunks:
+        print("\tAnswer")
         answers = answers + answer["chunk_answer"] + " "
         score_data = {"chunk_answer": answer["chunk_answer"], "score": answer["score"]}
         answer_scores.append(score_data)
@@ -161,16 +165,20 @@ def get_rag(question, search_k, search_score_cut, llm_prompt, llm_system, llm_te
     llm_result["input"] = prompt_format.replace("{prompt}", prompt)
     llm_result["input"] = llm_result["input"].replace("{system}", llm_system)
 
+    print("MODEL")
     # Generate LLM response and return the text but only allow 1 at a time
     with data_lock:
         llm_result["output"] = llama_model(llm_result["input"], max_tokens=llm_tokens, temperature=llm_temp)["choices"][0]["text"]
 
     # Find the baned tokens
+    print("BAN")
     index = llm_result["output"].find(ban_token)
 
     # Check if the ban token is found in the string
+    print("TRIM")
     if index != -1:
         # Trim the string, including the marker and everything after it
+        print("\tTrim")
         llm_result["output"] = llm_result["output"][:index]
 
     # Sure, throw the chunks in there too!
