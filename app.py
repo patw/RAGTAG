@@ -138,15 +138,15 @@ def get_embedding(ins, text):
 # Return the retrieval augmented generative result
 def get_rag(question, search_k, search_score_cut, llm_prompt, llm_system, llm_temp, llm_tokens):
     # Get all the chunks
-    print("GETTING CHUNKS")
+    print("GETTING CHUNKS", flush=True)
     chunks = list(vector_search_chunks(question, search_k, search_score_cut))
     answer_scores = []
 
     # Build the LLM answer chunks and build up our answer scores for later
     answers = ""
-    print("ANSWERS")
+    print("ANSWERS", flush=True)
     for answer in chunks:
-        print("\tAnswer")
+        print("\tAnswer", flush=True)
         answers = answers + answer["chunk_answer"] + " "
         score_data = {"chunk_answer": answer["chunk_answer"], "score": answer["score"]}
         answer_scores.append(score_data)
@@ -165,20 +165,20 @@ def get_rag(question, search_k, search_score_cut, llm_prompt, llm_system, llm_te
     llm_result["input"] = prompt_format.replace("{prompt}", prompt)
     llm_result["input"] = llm_result["input"].replace("{system}", llm_system)
 
-    print("MODEL")
+    print("MODEL", flush=True)
     # Generate LLM response and return the text but only allow 1 at a time
     with data_lock:
         llm_result["output"] = llama_model(llm_result["input"], max_tokens=llm_tokens, temperature=llm_temp)["choices"][0]["text"]
 
     # Find the baned tokens
-    print("BAN")
+    print("BAN", flush=True)
     index = llm_result["output"].find(ban_token)
 
     # Check if the ban token is found in the string
-    print("TRIM")
+    print("TRIM", flush=True)
     if index != -1:
         # Trim the string, including the marker and everything after it
-        print("\tTrim")
+        print("\tTrim", flush=True)
         llm_result["output"] = llm_result["output"][:index]
 
     # Sure, throw the chunks in there too!
@@ -219,6 +219,7 @@ def search_chunks(search_string):
 
 # Altlas vector search query for testing chunks semantically using embeddings
 def vector_search_chunks(search_string, k, cut):
+    print("GETEMBEDDING", flush=True)
     v = get_embedding("Represent the question for retrieving supporting documents:", search_string)
     search_query = [
         {
@@ -247,7 +248,7 @@ def vector_search_chunks(search_string, k, cut):
             "$match": { "score": { "$gte": float(cut) }}
         }
         ]
-
+    print("VECQUERY", flush=True)
     return col.aggregate(search_query)
 
 

@@ -17,7 +17,8 @@ RUN apt install -y \
         libssl-dev \
         pkg-config \
         build-essential \
-        python3-pip
+        python3-pip \
+        dos2unix
 
 # links
 RUN ln -s /usr/bin/python3.11 /usr/bin/python3 -f
@@ -35,6 +36,9 @@ COPY ./requirements.txt /opt/ragtag/requirements.txt
 COPY ./templates /opt/ragtag/templates
 COPY ./static /opt/ragtag/static
 COPY ./preloadpackages.py /opt/ragtag/preloadpackages.py
+COPY ./runner.sh /opt/ragtag/runner.sh
+RUN chmod +x /opt/ragtag/runner.sh
+RUN dos2unix /opt/ragtag/runner.sh
 
 # install pip required packages
 RUN python3 -m pip install -r /opt/ragtag/requirements.txt --break-system-packages
@@ -43,7 +47,7 @@ RUN cd /opt/ragtag
 WORKDIR /opt/ragtag
 RUN python3 preloadpackages.py
 # flask run -p 80 --host 0.0.0.0
-ENTRYPOINT ["flask", "run", "-p", "80", "--host", "0.0.0.0"]
+ENTRYPOINT ["/bin/bash", "/opt/ragtag/runner.sh"]
 #CMD ["/bin/bash"]
 
 EXPOSE 80
