@@ -13,6 +13,9 @@ dnspython==2.6.1
 # Environment file handling
 python-dotenv==1.0.1
 
+# God why...
+huggingface_hub==0.24.7
+
 # Embedding model
 sentence-transformers==2.2.2
 InstructorEmbedding==1.0.1
