@@ -2,20 +2,20 @@
 # Usage: pip install -r requirements.txt
 
 # Flask Framework
-Flask
-Flask-WTF
-Flask-Bootstrap4
+Flask==3.0.2
+Flask-WTF==1.2.1
+Flask-Bootstrap4==4.0.2
 
 # Mongo driver
-pymongo
-dnspython
+pymongo==4.6.1
+dnspython==2.6.1
 
 # Environment file handling
-python-dotenv
+python-dotenv==1.0.1
 
 # Embedding model
-sentence-transformers
-InstructorEmbedding
+sentence-transformers==2.2.2
+InstructorEmbedding==1.0.1
 
 # LLM model
-llama-cpp-python
+llama_cpp_python==0.2.44
